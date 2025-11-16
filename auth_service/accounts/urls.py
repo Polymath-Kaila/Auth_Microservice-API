@@ -4,5 +4,5 @@ from .views import SignupView
 # we register endpoint routes
 
 urlpatterns = [
-    path("signup/",SignupView(), name = "signup")
+    path("signup/",SignupView.as_view(), name="signup")
 ]

@@ -11,7 +11,7 @@ here think which field should API expose when returning user info?
   
 """
           
-class SignUpSerializer(serializers.ModelSerializer):
+class SignupSerializer(serializers.ModelSerializer):
     password = serializers.CharField(
         write_only=True,
         min_length = 6
@@ -27,7 +27,7 @@ class SignUpSerializer(serializers.ModelSerializer):
         model = User
         fields = ["email", "first_name", "last_name","password"]
         
-        def create(self,validated_data):
+    def create(self,validated_data):
             """
             create is the first lifecycle django method
             validated_data DRF serializer method for clean, safe data

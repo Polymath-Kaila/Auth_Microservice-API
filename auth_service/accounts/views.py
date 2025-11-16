@@ -9,7 +9,7 @@ from rest_framework.response import Response # for responses
 from rest_framework.views import APIView      
 from rest_framework.permissions import AllowAny 
 
-from .serializers import SignupSerializer
+from accounts.serializers import SignupSerializer
 
 class SignupView(APIView):
     """

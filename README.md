@@ -132,3 +132,28 @@ this controls:
 
   custom methodsobject is request and response
   
+### API TESTING WITH CURL
+  
+  ```bash
+  curl - tool to send HTTP reqs
+
+  -X POST - this is a post request
+
+  URL - ie signup url endpoint
+
+  -H - header (telling django its JSON)
+
+  -d - request body (JSON data)
+
+  ```
+  ```bash
+  curl -X POST \
+  http://127.0.0.1:8000/api/accounts/signup/ \
+  -H "Content-Type: application/json" \
+  -d '{
+        "email": "me@gmail.com",
+        "password": "Chicha1960",
+        "first_name": "kaila"
+      }'
+```
+
