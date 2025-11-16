@@ -17,7 +17,7 @@ class SignUpSerializer(serializers.ModelSerializer):
         min_length = 6
         )
     """ 
-    password must not be returned
+    password will only be accepted in req but never returned in res
     we control password validation
     we prevent showing hash or raw password
     
@@ -46,6 +46,7 @@ class SignUpSerializer(serializers.ModelSerializer):
             """ 
             generate JWT tokens
             simpleJWT creates tokens for new users
+            gives as refresh.access_token & refresh
             """ 
             
             refresh = RefreshToken.for_user(user)
