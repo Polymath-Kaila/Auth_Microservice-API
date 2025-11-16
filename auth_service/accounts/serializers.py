@@ -1,6 +1,8 @@
 from rest_framework import serializers
 from .models import User
 from rest_framework_simplejwt.tokens import RefreshToken
+from django.contrib.auth import authenticate
+
 
 """
 serializers comes from djongorestframework module
@@ -62,3 +64,70 @@ class SignupSerializer(serializers.ModelSerializer):
                 "access": str(refresh.access_token),
                 "refresh": str(refresh)
             }
+            
+class LoginSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+    password = serializers.CharField(write_only=True)
+    
+    
+    def validate(self,attr):
+        
+        """ 
+        this method is where we do:
+         1. authentication
+         2. existence checking
+         3. password checking
+         4. business rules, is_verified
+         5.attach user to validated_data
+         attr holds typed data email & password
+        """
+        
+        email = attr.get("email")
+        password = attr.get("password")
+        
+        """ 
+          this pulls raw email and password data
+        """
+        
+        
+        user = authenticate(email = email, password = password)
+        """ 
+          this checks:
+           Does user with this email exist?
+           Does the password match
+           is the user active
+        """
+        if not user:
+            raise serializers.ValidationError("Invalid email or password")
+        """ 
+         if authentication fails we raise a nice error
+         
+        """
+        
+        if not user.is_verified:
+            raise serializers.ValidationError("Please verify your email first")
+        """ 
+         optional we block unverified users from being authenticated
+        """
+        
+        attr["user"] = user
+        return attr
+    """ 
+     attach the authenticated user so create() method can access it 
+    """
+    
+    def create(self,validated_data):
+        """ 
+        for tokens
+        """
+        user = validated_data["user"]
+        
+        refresh = RefreshToken.for_user(user)
+        
+        return{
+            "email":user.email,
+            "is_verified":user.is_verified,
+            "access":str(refresh.access_token),
+            "refresh":str(refresh)
+        }
+        
