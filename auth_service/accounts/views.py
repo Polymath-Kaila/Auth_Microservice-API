@@ -6,10 +6,11 @@ from django.db import IntegrityError, transaction
 """
 from rest_framework import status           # for status codes
 from rest_framework.response import Response # for responses
-from rest_framework.views import APIView      
-from rest_framework.permissions import AllowAny 
+from rest_framework.views import APIView 
+     
+from rest_framework.permissions import IsAuthenticated,AllowAny 
+from accounts.serializers import SignupSerializer,LoginSerializer,MeSerializer
 
-from accounts.serializers import SignupSerializer
 
 class SignupView(APIView):
     """
@@ -84,3 +85,27 @@ class SignupView(APIView):
         
         return Response(result, status=status.HTTP_201_CREATED)
             # sends JSON back to frontend with a 201 created
+
+class LoginView(APIView):
+    
+    permission_classes = [AllowAny]
+    
+    def post(self,request):
+        serializer = LoginSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        
+        result = serializer.save()
+        
+        return Response(result, status=status.HTTP_200_OK)
+    
+class MeView(APIView):
+    """ 
+    GET /api/accounts/me/ returns current authenticated user basic info
+    """
+    
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request, *args, **kwargs):
+        
+      serializer = MeSerializer(request.User)
+      return Response(serializer.data, status = status.HTTP_200_OK)
