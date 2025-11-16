@@ -1,36 +1,86 @@
 from django.db import IntegrityError, transaction
-from rest_framework import status
-from rest_framework.response import Response
-from rest_framework.views import APIView
-from rest_framework.permissions import AllowAny
+
+""" 
+ we need transaction.atomic() to make create + token gen atomic ie if something fails db rolback
+ integrity error catches unique constraints ie duplicate email
+"""
+from rest_framework import status           # for status codes
+from rest_framework.response import Response # for responses
+from rest_framework.views import APIView      
+from rest_framework.permissions import AllowAny 
 
 from .serializers import SignupSerializer
 
 class SignupView(APIView):
     """
-    POST /api/accounts/signup/
-    Body: { "email": "...", "password": "...", "first_name": "...", "last_name": "..." }
-    Returns: 201 + { email, is_verified, access, refresh } on success.
+    this endpoint supports manual http methods(post, etc)
+    since we want to design exactly what happens on POST(signup)
+    
     """
 
-    permission_classes = [AllowAny]  # public endpoint
+    permission_classes = [AllowAny]
+    """ 
+    signup must be public
+    if we used `IsAuthenticated`, only looged-in users could sign up (makes no sense)
+    """
 
     def post(self, request, *args, **kwargs):
-        # 1) Validate input with serializer (raises 400 with details if invalid)
+        """ 
+        its a lifecycle drf view method 
+        request is an object that includes : request.data, .user etc
+        this function is executed everytime a POST request arrives
+        inside:
+            1. we read request data
+            2. we validate via serializer
+            3. save and return response
+            
+        """
+      
         serializer = SignupSerializer(data=request.data)
+        """ 
+        this takes the JSON from req body and feed into the serializer
+        """
+        
         serializer.is_valid(raise_exception=True)
+        """ 
+        this runs validation rules
+        checks required fields 
+        if invalid automatically returns HTTP 400 with error details
+        we dont need to write manual checks
+        """
 
-        # 2) Use a DB transaction to ensure atomicity: either user created + tokens generated or nothing
         try:
             with transaction.atomic():
-                # Our serializer.create() returns a dict with tokens + user fields (per your serializer)
+                """ 
+                this ensures either the entire signup succeed OR nothing is saved to db
+                if something fails:
+                  * user ins't created
+                  * db is not corrupted
+                  * tokens are not generated for non exustent users
+                Atomicity = proffessional approach
+                """
+               
                 result = serializer.save()
+                """ 
+                this line :
+                - calls SignupSerializer.create()
+                - which calls our UserManager
+                - which craetes the user
+                - which hashes the password
+                - which normalizes the email
+                - which sets flags ie is_staff
+                - which saves the user
+                - which generates JWT tokens
+                - then retursn the res dict
+                
+                """
         except IntegrityError as exc:
-            # Handle unique constraint errors (e.g. duplicate email) gracefully
+            
             return Response(
                 {"detail": "User with that email already exists."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        # 3) Return the created payload (already a dict with tokens + email + is_verified)
+        
         return Response(result, status=status.HTTP_201_CREATED)
+            # sends JSON back to frontend with a 201 created

@@ -122,4 +122,13 @@ this controls:
   3. create the user via the serializer which calls UserManager
   4. returns 201 created with {email, is_verified,access, refresh}
   5. return meaningful errors (400), 500 etc
+
+  + the view decides how to request data
+  + which serializer to use 
+  + whether the data is valid
+  + how to call our UserManager & Serializer logic
+  + what response to send back
+  + what status code to return
+
+  custom methodsobject is request and response
   

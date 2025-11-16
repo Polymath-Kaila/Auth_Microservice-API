@@ -29,6 +29,8 @@ class SignUpSerializer(serializers.ModelSerializer):
         
         def create(self,validated_data):
             """
+            create is the first lifecycle django method
+            validated_data DRF serializer method for clean, safe data
             extract password before creating user
             this prevents password from being saved as plain text
             """ 
