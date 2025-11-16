@@ -44,16 +44,21 @@ this controls:
 ### API Structure (4 core auth service)
 
    #### 1.sign up
-   - create a user
-   - send verification email
-   - return user info
+   - create a user.
+
+   - send verification email.
+
+   - return user info.
 
 
 
    #### 2.log in
-    - email + password
-    - return JWT tokens
-    - block unverified users
+    - email + password.
+
+    - return JWT tokens.
+
+    - block unverified users.
+
 
 
    #### 3.Me/profile endpoint
@@ -62,4 +67,50 @@ this controls:
 
     #### 4.logout
 
-# Auth_Microservice-API
+###
+ 1. Session Auth
+ 2. JWT Auth
+
+    - Access tokens.
+    - refresh token.
+    - stateless auth
+    - works better for mobile/web/external clients
+    - can be stored in http-only cookie/headers
+    - reduces server memory load
+    
+
+    ```bash
+    pip install djangorestframework-simplejwt
+
+    ```
+
+    ### Signup serializer
+       + validate input
+       + create user
+       + hash password
+       + not log uer automatically
+       + return email and is_verified
+
+    #### registration decisions
+       1. required sign-up fields ie email + password +optional names
+       2. signup automatically log user in OR vice versa
+         
+        + accept input/validate 
+
+        + create user 
+
+        <pre>User.objects.create_user(...)</pre>
+
+        + issue jwt immediately(generate tokens)
+
+        <pre>RefreshToken.for_user(user)</pre>
+
+        + return user data + tokens
+          <pre>
+          {
+            "email":
+            "is_verified":
+            "access":
+            "refresh":
+          }
+          </pre>
