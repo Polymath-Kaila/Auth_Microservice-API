@@ -135,3 +135,40 @@ class MeSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         field = ["email", "is_verified"]
+        
+        
+from rest_framework import serializers
+from rest_framework_simplejwt.tokens import RefreshToken, TokenError
+
+class TokenRefreshSerializer(serializers.Serializer):
+    refresh = serializers.CharField()
+
+    def validate(self, attrs):
+        refresh_token = attrs.get("refresh")
+
+        try:
+            # Validate + decode refresh token
+            refresh = RefreshToken(refresh_token)
+
+            # Get the user from token
+            user_id = refresh["user_id"]
+
+        except TokenError:
+            raise serializers.ValidationError("Invalid or expired refresh token.")
+
+        attrs["user_id"] = user_id
+        attrs["refresh"] = refresh
+
+        return attrs
+
+    def create(self, validated_data):
+        refresh = validated_data["refresh"]
+        user_id = validated_data["user_id"]
+
+        # Generate a new access token
+        new_access = refresh.access_token
+
+        return {
+            "access": str(new_access),
+            "refresh": str(refresh),
+        }
