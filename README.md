@@ -95,9 +95,9 @@ this controls:
        1. required sign-up fields ie email + password +optional names
        2. signup automatically log user in OR vice versa
          
-        + accept input/validate 
+       + accept input/validate 
 
-        + create user 
+       + create user 
 
         <pre>User.objects.create_user(...)</pre>
 
@@ -114,3 +114,12 @@ this controls:
             "refresh":
           }
           </pre>
+
+
+## views
+  1. accept POST/api/accounts/signup/ with email + password
+  2. validate input via SignUpSerializer
+  3. create the user via the serializer which calls UserManager
+  4. returns 201 created with {email, is_verified,access, refresh}
+  5. return meaningful errors (400), 500 etc
+  
