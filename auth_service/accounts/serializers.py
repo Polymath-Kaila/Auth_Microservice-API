@@ -1,7 +1,10 @@
 from rest_framework import serializers
 from .models import User
-from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework_simplejwt.tokens import RefreshToken,TokenError
 from django.contrib.auth import authenticate
+from datetime import datetime,timezone
+from django.conf import settings
+import json 
 
 
 """
@@ -137,8 +140,7 @@ class MeSerializer(serializers.ModelSerializer):
         field = ["email", "is_verified"]
         
         
-from rest_framework import serializers
-from rest_framework_simplejwt.tokens import RefreshToken, TokenError
+
 
 class TokenRefreshSerializer(serializers.Serializer):
     refresh = serializers.CharField()
@@ -150,20 +152,32 @@ class TokenRefreshSerializer(serializers.Serializer):
             # Validate + decode refresh token
             refresh = RefreshToken(refresh_token)
 
-            # Get the user from token
-            user_id = refresh["user_id"]
-
         except TokenError:
             raise serializers.ValidationError("Invalid or expired refresh token.")
+        
+        # extract jti and user_id and exp
+        jti = refresh.get("jti")
+        user_id = refresh["user_id"]
+        exp = refresh.get("exp")
+        
+        # check redis blacklist
+        redis_client = settings.REDIS_CLIENT
+        redis = f"token:{jti}"
+        if redis_client.exists(key):
+            raise serializers.ValidationError("Refresh token has been revoked (logged out)")
+        
+        
 
         attrs["user_id"] = user_id
         attrs["refresh"] = refresh
+        attrs["jti"] = jti
+        attrs["exp"] = exp
+        
 
         return attrs
 
     def create(self, validated_data):
         refresh = validated_data["refresh"]
-        user_id = validated_data["user_id"]
 
         # Generate a new access token
         new_access = refresh.access_token
@@ -172,3 +186,65 @@ class TokenRefreshSerializer(serializers.Serializer):
             "access": str(new_access),
             "refresh": str(refresh),
         }
+        
+class LogoutSerializer(serializers.Serializer):
+    refresh = serializers.CharField()
+    
+    
+    def validate(self,attrs):
+        refresh_token = attrs.get("refresh")
+        
+        try:
+        
+            refresh = RefreshToken(refresh_token)
+            
+        except TokenError:
+            raise serializers.ValidationError("Invalid or expired refresh token")
+        
+        #extract jti,user_id,exp
+        jti = refresh.get("jti")
+        user_id = refresh.get("user_id")
+        exp = refresh.get("exp")
+        
+        if not jti:
+            raise serializers.ValidationError("Token missing unique id (jti)")
+        
+        attrs["refresh"] = refresh
+        attrs["jti"] = jti
+        attrs["user_id"] = user_id
+        attrs["exp"] = exp
+        
+        
+    def create(self,validated_data):
+        """ 
+        Blacklist the refresh token by storing metadata in Redis with TTL = (exp - now)
+        """
+        redis_client = settings.REDIS_CLIENT
+        jti = validated_data["jti"]
+        user_id = validated_data["user_id"]
+        exp = validated_data["exp"]
+        
+        #complete TTL in seconds
+        
+        now_ts = int(datetime.now(tz=timezone.utc).timestamp())
+        ttl = exp - now_ts
+        if ttl <= 0:
+            
+            #token already expired - nothing to store
+            return{"detail": "Token already expired."}
+        
+        key = f"token:{jti}"
+        
+        value = {
+            "user_id":user_id,
+            "revoked_at":now_ts,
+            "exp":exp,
+            "type":"refresh"       
+        }
+        
+        redis_client.set(key, json.dumps(value),ex=ttl)
+        
+        return{"detail":"logged out (refresh token revoked)."}
+        
+        
+        

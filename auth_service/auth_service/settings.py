@@ -9,6 +9,8 @@ https://docs.djangoproject.com/en/5.2/topics/settings/
 For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.2/ref/settings/
 """
+
+import redis
 import environ
 
 env = environ.Env()
@@ -51,6 +53,15 @@ MIDDLEWARE = [
 ]
 
 ROOT_URLCONF = 'auth_service.urls'
+
+
+REDIS_CLIENT = redis.Redis(
+    host="localhost",  # later in production use env vars
+    port=6379,
+    db=0,
+    decode_responses=True
+)
+
 
 TEMPLATES = [
     {

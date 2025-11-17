@@ -9,7 +9,7 @@ from rest_framework.response import Response # for responses
 from rest_framework.views import APIView 
      
 from rest_framework.permissions import IsAuthenticated,AllowAny 
-from accounts.serializers import SignupSerializer,LoginSerializer,MeSerializer
+from accounts.serializers import SignupSerializer,LoginSerializer,MeSerializer,TokenRefreshSerializer,LogoutSerializer
 
 
 class SignupView(APIView):
@@ -109,3 +109,28 @@ class MeView(APIView):
         
       serializer = MeSerializer(request.User)
       return Response(serializer.data, status = status.HTTP_200_OK)
+  
+  
+class TokenRefreshView(APIView):
+    permission_classes = [AllowAny]
+
+    def post(self, request,args, **kwargs):
+        serializer = TokenRefreshSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        result = serializer.save()
+        return Response(result, status=200)
+
+class LogoutView(APIView):
+    """
+    POST /api/accounts/logout/
+    Body: { "refresh": "<refresh_token>" }
+    Accepts only the refresh token, revokes it (backed by Redis).
+    """
+    permission_classes =[AllowAny]
+    
+    def post(self,request, args , **kwargs):
+        serializer = LoginSerializer(data = request.data)
+        serializer.is_valid(raise_exception=True)
+        result = serializer.save()
+        return Response(result,status=status.HTTP_200_OK)
