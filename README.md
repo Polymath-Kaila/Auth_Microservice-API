@@ -130,7 +130,8 @@ this controls:
   + what response to send back
   + what status code to return
 
-  custom methodsobject is request and response
+  custom methodsobject   "email": "kailaevans@gmail.com",
+  "is_verified": false,is request and response
   
 ### API TESTING WITH CURL
   
@@ -156,4 +157,68 @@ this controls:
         "first_name": "kaila"
       }'
 ```
+### FLOW
+   1. Frontend sends a POST JSON
+   2. URL router sees /account/signup/
+   3. Django calls SignupView.post()
+   4. we create a serializer with req.data
+   5. serializer.is_valid() checks rules
+   6. serializer.save()- triggers creat()
+   7. create() uses UserManager.create_user()
+   8. user gets stored in DB 
+   9. View returns JSON res 
+   10. fronted receives success + tokens
+
+
+### LOGIN
+its to:
++ validate email and password
++ authenticate the user
++ block login if email is wrong
++ block login if password is wrong
++ block login if user is not verified 
++ generate access + refresh tokens
++ return to user
+
+
+### LOGOUT with refresh tokens blacklist
++ onlogout, the client sends the refresh token.
++ the server marks this refresh token as `blacklist`
++ Any future attempts to refresh with this token are rejected
++ The user effectively becomes logged out
+
+- blacklisted tokens are stoed in a cache system ie redis
+
+#### /logout/ endpoint
+1. client sends `refresh token`
+2. validate it
+3. Extract token jti(unique ID)
+4. Save jti into redis
+5. later if refresh is used --.check if redis -->deny
+
++ we first install redis conn from django 
+ ```bash
+ pip install redis
+ ```
++ we cofigure in settings.py 
+
+
+### Email verification 
+  + user signs up, is_verified=false, no otp yet
+  + fronted calls /send-otp/
+  + backend :
+  1. gen 6 digit otp
+  2. store it temporarily
+  3. send it via email
+  4. bind otp to user email/user_id
+  5. send an expiry 5-10 mins
+  + user enters otp in frontend--> fronted calls /verify-email/
+  + backend verifys otp
+  1. check if otp exists
+  2. check if it matches
+  3. check if not expired
+  4. check if not already used
+  5. make user_is_verified = true
+  6. delete/expire the OTP
+
 

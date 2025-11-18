@@ -10,7 +10,10 @@ from rest_framework.views import APIView
      
 from rest_framework.permissions import IsAuthenticated,AllowAny 
 from accounts.serializers import SignupSerializer,LoginSerializer,MeSerializer,TokenRefreshSerializer,LogoutSerializer
-
+from accounts.serializers import (
+    SendOtpSerializer,
+    VerifyOtpSerializer
+)
 
 class SignupView(APIView):
     """
@@ -134,3 +137,21 @@ class LogoutView(APIView):
         serializer.is_valid(raise_exception=True)
         result = serializer.save()
         return Response(result,status=status.HTTP_200_OK)
+    
+class SendOtpView(APIView):
+    permission_classes = [APIView]
+    
+    def post(self,request):
+        serializer = SendOtpSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        result = serializer.save()
+        return Response(result,status=status.HTTP_200_OK)
+    
+class VerifyOtpView(APIView):
+    permission_classes=[AllowAny]
+    
+    def post(self,request):
+        serializer = VerifyOtpSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        result = serializer.save()
+        return Response(result, status = status.HTTP_200_OK)

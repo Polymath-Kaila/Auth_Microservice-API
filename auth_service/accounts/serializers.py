@@ -5,7 +5,17 @@ from django.contrib.auth import authenticate
 from datetime import datetime,timezone
 from django.conf import settings
 import json 
+from rest_framework import serializers
+from django.contrib.auth import get_user_model
+from django.conf import settings
 
+from accounts.utils import (
+    generate_otp, set_otp, get_otp,
+    can_resend, increment_attempts, get_attempts,
+    revoke_otp, OTP_MAX_ATTEMPTS, OTP_TTL_SECONDS
+)
+
+from accounts.tasks import send_otp_email
 
 """
 serializers comes from djongorestframework module
@@ -247,4 +257,83 @@ class LogoutSerializer(serializers.Serializer):
         return{"detail":"logged out (refresh token revoked)."}
         
         
-        
+# accounts/serializers.py
+User = get_user_model()
+
+
+# -------------------- SEND OTP --------------------
+class SendOtpSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+
+    def validate(self, attrs):
+        email = attrs["email"].lower()
+
+        # Ensure user actually exists for email verification
+        if not User.objects.filter(email=email).exists():
+            raise serializers.ValidationError("No account is registered with this email.")
+
+        if not can_resend(email):
+            raise serializers.ValidationError("OTP already sent. Try again soon.")
+
+        attrs["email"] = email
+        return attrs
+
+    def create(self, validated_data):
+        email = validated_data["email"]
+
+        # Generate OTP
+        otp = generate_otp()
+
+        # Store OTP in Redis with TTL
+        set_otp(email, otp)
+
+        # Send OTP async
+        send_otp_email.delay(email, otp)
+
+        return {"detail": "OTP sent successfully."}
+
+
+# -------------------- VERIFY OTP --------------------
+class VerifyOtpSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+    otp = serializers.CharField(max_length=10)
+
+    def validate(self, attrs):
+        email = attrs["email"].lower()
+        otp = attrs["otp"].strip()
+
+        stored = get_otp(email)
+
+        if not stored:
+            raise serializers.ValidationError("OTP expired or not found. Request a new code.")
+
+        attempts = get_attempts(email)
+        if attempts >= OTP_MAX_ATTEMPTS:
+            revoke_otp(email)
+            raise serializers.ValidationError("Too many failed attempts. OTP invalidated.")
+
+        attrs["email"] = email
+        attrs["otp"] = otp
+        return attrs
+
+    def create(self, validated_data):
+        email = validated_data["email"]
+        otp = validated_data["otp"]
+
+        stored = get_otp(email)
+
+        if stored != otp:
+            attempts = increment_attempts(email)
+            remaining = OTP_MAX_ATTEMPTS - attempts
+            raise serializers.ValidationError(f"Invalid OTP. {remaining} attempts left.")
+
+        # OTP correct → verify user
+        user = User.objects.get(email=email)
+        user.is_verified = True
+        user.save(update_fields=["is_verified"])
+
+        # Clean Redis keys
+        revoke_otp(email)
+
+        return {"detail": "Email verified successfully!"}
+
